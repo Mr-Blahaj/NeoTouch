@@ -29,7 +29,8 @@ const MIME_TYPES = {
   ".png":  "image/png",
   ".jpg":  "image/jpeg",
   ".gif":  "image/gif",
-  ".ico":  "image/x-icon"
+  ".ico":  "image/x-icon",
+  ".wasm": "application/wasm"
 };
 
 // ---------------------------------------------------------------------------
@@ -186,9 +187,15 @@ const server = http.createServer((req, res) => {
   let safePath = req.url.split("?")[0];
   if (safePath === "/") safePath = "/index.html";
 
-  const filePath = path.join(__dirname, safePath);
+  const cogniPrefix = "/cogniplay";
+  const isCogniPlay = safePath === cogniPrefix || safePath.startsWith(`${cogniPrefix}/`);
+  const webRoot = isCogniPlay ? path.join(__dirname, "CogniPlay", "cogniplay", "dist") : __dirname;
+  let relativePath = isCogniPlay ? safePath.slice(cogniPrefix.length) || "/index.html" : safePath;
+  if (isCogniPlay && relativePath === "/") relativePath = "/index.html";
 
-  if (!filePath.startsWith(__dirname)) {
+  const filePath = path.join(webRoot, relativePath);
+
+  if (!filePath.startsWith(webRoot)) {
     res.writeHead(403, { "Content-Type": "text/plain" });
     res.end("403 Forbidden: Directory Traversal Blocked");
     return;
@@ -200,8 +207,21 @@ const server = http.createServer((req, res) => {
   fs.readFile(filePath, (err, content) => {
     if (err) {
       if (err.code === "ENOENT") {
-        res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
-        res.end("<h1>404 Not Found</h1><p>The requested file does not exist.</p>");
+        if (isCogniPlay) {
+          const indexPath = path.join(webRoot, "index.html");
+          fs.readFile(indexPath, (indexErr, indexContent) => {
+            if (indexErr) {
+              res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
+              res.end("<h1>404 Not Found</h1><p>Build CogniPlay first with npm run build.</p>");
+            } else {
+              res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+              res.end(indexContent);
+            }
+          });
+        } else {
+          res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
+          res.end("<h1>404 Not Found</h1><p>The requested file does not exist.</p>");
+        }
       } else {
         res.writeHead(500, { "Content-Type": "text/plain" });
         res.end(`500 Server Error: ${err.code}`);

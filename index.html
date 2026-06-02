@@ -51,15 +51,15 @@
       <div id="desktop-dashboard">
         <header>
           <div>
-            <h2>TouchWall OS</h2>
-            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 2px;">Smart Projector Interactive Interface</p>
+            <h2>CogniPlay Studio</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 2px;">Interactive play space for touch, trace, draw, and explore</p>
           </div>
           
           <!-- Navigation Tabs -->
           <div class="app-tabs">
-            <button class="tab-btn active" data-app="canvas">Creative Draw</button>
-            <button class="tab-btn" data-app="game">Laser Pop</button>
-            <button class="tab-btn" data-app="smarthome">Smart Home</button>
+            <button class="tab-btn active" data-app="puzzles">Puzzle Playground</button>
+            <button class="tab-btn" data-app="canvas">Whiteboard</button>
+            <button class="tab-btn" data-app="recording">Recording</button>
             <button class="tab-btn" data-app="debugger">CV Engine</button>
           </div>
 
@@ -72,8 +72,20 @@
         <!-- Active View Window -->
         <div id="active-app-frame">
           
-          <!-- App 1: Drawing Board -->
-          <div class="app-view active" id="app-canvas">
+          <!-- App 1: Cognitive Playground -->
+          <div class="app-view active" id="app-puzzles">
+            <div id="puzzle-app">
+              <iframe
+                id="cogniplay-frame"
+                title="CogniPlay Puzzle Playground"
+                src="/cogniplay/"
+                allow="camera; microphone; fullscreen"
+              ></iframe>
+            </div>
+          </div>
+
+          <!-- App 2: Drawing Board -->
+          <div class="app-view" id="app-canvas">
             <div id="canvas-app">
               <div class="canvas-toolbar">
                 <div class="color-palette">
@@ -94,6 +106,7 @@
                 <div style="display: flex; align-items: center; gap: 10px;">
                   <button class="btn" onclick="whiteboardUndo()">↩️ Undo</button>
                   <button class="btn" onclick="whiteboardRedo()">↪️ Redo</button>
+                  <button class="btn" onclick="document.getElementById('pdf-upload-input').click()">PDF</button>
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 10px; flex-grow: 0.2;">
@@ -120,12 +133,18 @@
                   <button class="btn" onclick="toggleVirtualKeyboard()" style="padding: 8px 12px; font-size: 1.2rem;" title="On-Screen Keyboard">⌨️</button>
                   <button class="btn btn-primary" onclick="triggerAiMagicSketch(document.getElementById('ai-prompt-input').value)" style="padding: 8px 14px;">Draw</button>
                   <button class="btn" onclick="triggerLocalAi(document.getElementById('ai-prompt-input').value, 'flowchart')" style="padding: 8px 14px;">Flowchart</button>
+                  <button class="btn" onclick="triggerLocalAi(document.getElementById('ai-prompt-input').value, 'table')" style="padding: 8px 14px;">Table</button>
+                  <button class="btn" onclick="triggerLocalAi(document.getElementById('ai-prompt-input').value, 'wordchart')" style="padding: 8px 14px;">Word Chart</button>
                   <button class="btn" onclick="triggerLocalAi(document.getElementById('ai-prompt-input').value, 'definition')" style="padding: 8px 14px;">Define</button>
                   <button class="btn" onclick="triggerLocalAi(document.getElementById('ai-prompt-input').value, 'answer')" style="padding: 8px 14px;">Ask</button>
                 </div>
               </div>
               
-              <canvas id="paint-canvas"></canvas>
+              <input id="pdf-upload-input" type="file" accept="application/pdf" style="display:none;">
+              <div class="whiteboard-stage">
+                <iframe id="pdf-viewer" title="PDF viewer"></iframe>
+                <canvas id="paint-canvas"></canvas>
+              </div>
               
               <!-- Virtual Keyboard Overlay -->
               <div id="virtual-keyboard" class="glass-panel" style="display: none; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 85%; max-width: 800px; z-index: 1000; flex-direction: column; gap: 8px; padding: 20px; background: rgba(10, 12, 20, 0.95); border-color: var(--accent-cyan);">
@@ -134,7 +153,7 @@
             </div>
           </div>
 
-          <!-- App 2: Physics Popping Game -->
+          <!-- App 3: Physics Popping Game -->
           <div class="app-view" id="app-game">
             <div id="game-app">
               <div class="game-hud">
@@ -152,79 +171,26 @@
             </div>
           </div>
 
-          <!-- App 3: Smart Home Controls -->
-          <div class="app-view" id="app-smarthome">
-            <div id="smarthome-app">
-              
-              <!-- Device 1: Living Room Lights -->
-              <div class="glass-panel device-card on dimmable" id="device-light">
-                <div class="device-info">
-                  <div>
-                    <div class="device-name">Wall Light</div>
-                    <div class="device-room">Living Room</div>
-                  </div>
-                  <div class="device-icon">💡</div>
+          <!-- App 4: Recording & Subtitles -->
+          <div class="app-view" id="app-recording">
+            <div id="recording-app">
+              <section class="glass-panel recording-card">
+                <h3>Lecture Recording</h3>
+                <p>Record class sessions, keep captions for inclusivity, and prepare cloud upload when credentials are connected.</p>
+                <div class="recording-actions">
+                  <button class="btn btn-primary" id="record-session-btn">Start Recording</button>
+                  <button class="btn" id="upload-session-btn">Upload to Cloud</button>
+                  <button class="btn" id="captions-session-btn">Generate Subtitles</button>
                 </div>
-                <div class="device-slider-container">
-                  <label>Brightness: <span id="light-dim-val" class="value-display">80%</span></label>
-                  <input type="range" class="device-range" min="10" max="100" value="80">
+                <div id="recording-status" class="recording-status">Ready. Google Speech-to-Text and cloud upload need API credentials in server settings.</div>
+              </section>
+              <section class="glass-panel recording-card">
+                <h3>Platform Topics</h3>
+                <div class="topic-grid">
+                  <span>Pattern Play</span><span>Maze Tracing</span><span>Shape Sorting</span><span>Shadow Match</span>
+                  <span>Memory Lights</span><span>Cause and Effect</span><span>Counting Play</span><span>Drawing Studio</span>
                 </div>
-                <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-                  <div class="toggle-switch"></div>
-                </div>
-              </div>
-
-              <!-- Device 2: Air Conditioner -->
-              <div class="glass-panel device-card on" id="device-ac">
-                <div class="device-info">
-                  <div>
-                    <div class="device-name">Smart AC</div>
-                    <div class="device-room">Climate Control</div>
-                  </div>
-                  <div class="device-icon">❄️</div>
-                </div>
-                <div class="device-slider-container">
-                  <label>Temperature: <span id="ac-temp-val" class="value-display">21°C</span></label>
-                  <input type="range" class="device-range" min="16" max="30" value="21">
-                </div>
-                <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-                  <div class="toggle-switch"></div>
-                </div>
-              </div>
-
-              <!-- Device 3: Media Volume -->
-              <div class="glass-panel device-card on dimmable" id="device-media">
-                <div class="device-info">
-                  <div>
-                    <div class="device-name">Soundbar</div>
-                    <div class="device-room">Audio System</div>
-                  </div>
-                  <div class="device-icon">🔊</div>
-                </div>
-                <div class="device-slider-container">
-                  <label>Volume: <span id="media-vol-val" class="value-display">45%</span></label>
-                  <input type="range" class="device-range" min="0" max="100" value="45">
-                </div>
-                <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-                  <div class="toggle-switch"></div>
-                </div>
-              </div>
-
-              <!-- Device 4: Projector Lamp Mode -->
-              <div class="glass-panel device-card" id="device-lamp">
-                <div class="device-info">
-                  <div>
-                    <div class="device-name">Projector Lamp</div>
-                    <div class="device-room">Eco Mode</div>
-                  </div>
-                  <div class="device-icon">🎥</div>
-                </div>
-                <div style="margin-top: 30px; display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: var(--text-secondary); font-size: 0.85rem;">Standard Output</span>
-                  <div class="toggle-switch"></div>
-                </div>
-              </div>
-
+              </section>
             </div>
           </div>
 
@@ -286,8 +252,8 @@
     <!-- 2. SIDE CONTROL PANEL (Used to manage the project setup) -->
     <aside id="control-dock">
       <div>
-        <h1>TouchWall</h1>
-        <p class="subtitle">Smart Projector Hand-Tracking Controller</p>
+        <h1>Settings</h1>
+        <p class="subtitle">Adult setup for the interactive play wall</p>
       </div>
 
       <!-- Section: System Toggles -->
@@ -302,17 +268,17 @@
       </section>
 
       <!-- Section: Active Camera Feed overlay -->
-      <section class="dock-section glass-panel">
-        <h3>Live Camera Stream</h3>
+      <details class="dock-section glass-panel settings-details">
+        <summary>Camera Preview</summary>
         <div class="camera-container">
           <video id="webcam-feed" playsinline muted></video>
           <canvas id="overlay-canvas"></canvas>
         </div>
-      </section>
+      </details>
 
       <!-- Section: Perspective Calibration -->
-      <section class="dock-section glass-panel">
-        <h3>Perspective Calibration</h3>
+      <details class="dock-section glass-panel settings-details">
+        <summary>Calibration</summary>
         <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 5px;">
           Map camera coordinates to the projector's boundaries using a 4-point keystoning matrix.
         </div>
@@ -336,11 +302,11 @@
         <div id="calibration-status" style="font-size: 0.8rem; text-align: center; color: var(--accent-yellow); margin-top: 4px;">
           Status: Uncalibrated
         </div>
-      </section>
+      </details>
 
       <!-- Section: Sensitivity Adjustments -->
-      <section class="dock-section glass-panel">
-        <h3>Sensitivity & Gestures</h3>
+      <details class="dock-section glass-panel settings-details">
+        <summary>Touch & Gestures</summary>
         
         <div style="display: flex; flex-direction: column; gap: 10px;">
           <div>
@@ -413,7 +379,7 @@
             <span style="font-size: 0.65rem; color: var(--text-muted);">Tuning for coordinate velocity projection</span>
           </div>
         </div>
-      </section>
+      </details>
 
     </aside>
 

@@ -563,11 +563,76 @@ header h2 {
 }
 
 /* App 1: Drawing canvas */
+#puzzle-app {
+  width: 100%;
+  height: 100%;
+  background: #fffdfa;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+#cogniplay-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fffdfa;
+}
+
 #canvas-app {
   display: flex;
   flex-direction: column;
   height: 100%;
   gap: 15px;
+}
+
+#recording-app {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(320px, 1.1fr) minmax(320px, 0.9fr);
+  gap: 24px;
+  overflow-y: auto;
+  align-content: start;
+}
+
+.recording-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.recording-card p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.recording-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.recording-status {
+  padding: 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: rgba(17, 17, 17, 0.04);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.topic-grid span {
+  padding: 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: #fffdfa;
+  font-weight: 700;
 }
 
 .canvas-toolbar {
@@ -603,12 +668,32 @@ header h2 {
   box-shadow: 0 0 10px rgba(255,255,255,0.4);
 }
 
-#paint-canvas {
+.whiteboard-stage {
+  position: relative;
   flex-grow: 1;
+  min-height: 360px;
   background: #020204;
   border-radius: 16px;
   border: 1px solid var(--glass-border);
   box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+  overflow: hidden;
+}
+
+#pdf-viewer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fffdfa;
+  display: none;
+}
+
+#paint-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: transparent;
   cursor: none;
 }
 
@@ -976,4 +1061,113 @@ header h2 {
 }
 .vk-key.spacebar {
   flex-grow: 0.6;
+}
+
+/* Calm professional theme overrides */
+:root {
+  --bg-darker: #f7f2e9;
+  --bg-dark: #fffdfa;
+  --bg-card: rgba(255, 253, 250, 0.88);
+  --glass-bg: rgba(255, 253, 250, 0.9);
+  --glass-border: rgba(17, 17, 17, 0.13);
+  --glass-highlight: rgba(17, 17, 17, 0.03);
+  --accent-cyan: #315c52;
+  --accent-blue: #111111;
+  --accent-yellow: #ad8a58;
+  --accent-magenta: #7e6748;
+  --accent-green: #315c52;
+  --accent-red: #b96b5e;
+  --text-primary: #111111;
+  --text-secondary: #6f6a62;
+  --text-muted: #9a9287;
+  --glow-cyan: 0 10px 24px rgba(17, 17, 17, 0.13);
+  --glow-yellow: 0 10px 24px rgba(173, 138, 88, 0.16);
+  --glow-magenta: 0 10px 24px rgba(126, 103, 72, 0.16);
+  --glow-green: 0 10px 24px rgba(49, 92, 82, 0.16);
+}
+
+body {
+  background-color: var(--bg-darker);
+  background-image:
+    linear-gradient(rgba(255,255,255,0.45), rgba(255,255,255,0.45)),
+    repeating-linear-gradient(0deg, rgba(17,17,17,0.025) 0, rgba(17,17,17,0.025) 1px, transparent 1px, transparent 32px),
+    repeating-linear-gradient(90deg, rgba(17,17,17,0.02) 0, rgba(17,17,17,0.02) 1px, transparent 1px, transparent 32px);
+}
+
+.glass-panel {
+  border-radius: 8px;
+  box-shadow: 0 14px 34px rgba(31, 28, 23, 0.08);
+}
+
+.btn,
+.tab-btn,
+.hud-panel {
+  border-radius: 8px;
+}
+
+.btn-primary,
+.btn-accent {
+  background: #111111 !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(17, 17, 17, 0.16) !important;
+}
+
+#projector-screen,
+#control-dock,
+#active-app-frame,
+#paint-canvas {
+  background-color: #fffdfa;
+}
+
+.app-tabs {
+  background: rgba(17, 17, 17, 0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+}
+
+.tab-btn.active {
+  background: #111111;
+  color: #ffffff;
+}
+
+.settings-details {
+  gap: 14px;
+}
+
+.settings-details summary {
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--font-title);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.settings-details summary::after {
+  content: '+';
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.settings-details[open] summary::after {
+  content: '-';
+}
+
+.settings-details > *:not(summary) {
+  margin-top: 12px;
+}
+
+select,
+input[type="number"],
+input[type="text"] {
+  background: #fffdfa !important;
+  color: var(--text-primary) !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(17, 17, 17, 0.2);
+  border-color: #fffdfa;
 }

@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let isClickDown = false;
   let activeClickSource = null;
   
-  let currentActiveApp = "canvas";
+  let currentActiveApp = "puzzles";
   let activeDrawColor = "#00f2fe";
   let brushSize = 8;
   
@@ -224,7 +224,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. Whiteboard Canvas matches its container space exactly
     const pRect = paintCanvas.parentElement.getBoundingClientRect();
     paintCanvas.width = pRect.width;
-    paintCanvas.height = pRect.height - 70; // Adjust for toolbar height
+    paintCanvas.height = pRect.height;
     
     // Maintain drawing style integrity
     paintCtx.lineCap = "round";
@@ -899,6 +899,7 @@ document.addEventListener("DOMContentLoaded", () => {
       
       // 3. EXECUTE APP DRAWING AND GAME HIT INTERACTIONS
       if (isClickDown) {
+        forwardActivePointerMove();
         if (currentActiveApp === "canvas") {
           addPointToStroke(cursorX, cursorY);
         } else if (currentActiveApp === "game") {
@@ -919,6 +920,38 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // --- Synthesize Click Events on DOM ---
+  function dispatchIntoCogniPlayFrame(x, y, type) {
+    const frame = document.getElementById("cogniplay-frame");
+    if (!frame || !frame.contentWindow || !frame.contentDocument) return false;
+    const rect = frame.getBoundingClientRect();
+    if (x < rect.left || y < rect.top || x > rect.right || y > rect.bottom) return false;
+
+    const fx = x - rect.left;
+    const fy = y - rect.top;
+    const target = frame.contentDocument.elementFromPoint(fx, fy);
+    if (!target) return true;
+
+    const eventInit = {
+      clientX: fx,
+      clientY: fy,
+      bubbles: true,
+      cancelable: true,
+      pointerId: 77,
+      pointerType: "touch",
+      isPrimary: true,
+      buttons: type === "pointerup" || type === "mouseup" ? 0 : 1,
+    };
+    if (type.startsWith("pointer")) {
+      target.dispatchEvent(new PointerEvent(type, eventInit));
+    } else {
+      target.dispatchEvent(new MouseEvent(type, eventInit));
+    }
+    if (type === "mouseup" && target.closest && target.closest("button")) {
+      target.closest("button").click();
+    }
+    return true;
+  }
+
   function simulateMouseClick(x, y, type) {
     // System cursor click is sent before local hit-testing so it can interact
     // with the OS, other apps, and the browser chrome when enabled.
@@ -936,6 +969,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const targetEl = document.elementFromPoint(x, y);
     if (!targetEl) return;
+
+    if (currentActiveApp === "puzzles" && targetEl.id === "cogniplay-frame") {
+      dispatchIntoCogniPlayFrame(x, y, type === "mousedown" ? "pointerdown" : "pointerup");
+      dispatchIntoCogniPlayFrame(x, y, type);
+      return;
+    }
 
     if (type === "mousedown") {
       log(`Gesture Down at Screen X:${Math.round(x)}, Y:${Math.round(y)} (Target: <${targetEl.tagName.toLowerCase()}>)`);
@@ -1021,6 +1060,13 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   });
+
+  function forwardActivePointerMove() {
+    if (currentActiveApp === "puzzles" && isClickDown) {
+      dispatchIntoCogniPlayFrame(cursorX, cursorY, "pointermove");
+      dispatchIntoCogniPlayFrame(cursorX, cursorY, "mousemove");
+    }
+  }
 
   window.addEventListener("dwellprogress", (e) => {
     const { progress } = e.detail;
@@ -1398,6 +1444,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function insertAiTable(text, title = "Table") {
+    const rows = String(text || "")
+      .split("\n")
+      .map(line => line.trim())
+      .filter(Boolean)
+      .slice(0, 8);
+    insertAiText(rows.length ? rows.join("\n") : "Term | Meaning\nFirst | Main idea\nNext | Detail", title);
+  }
+
   window.triggerLocalAi = async function(prompt, mode) {
     const input = document.getElementById('ai-prompt-input');
     const cleanPrompt = String(prompt || "").trim();
@@ -1409,6 +1464,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const chart = await window.LocalOllamaAssistant.generateFlowchart(cleanPrompt, "llama3");
         insertAiFlowchart(chart);
         log("Local AI generated flowchart for: " + cleanPrompt);
+      } else if (mode === "table" || mode === "wordchart") {
+        const text = await window.LocalOllamaAssistant.generateText(
+          `${mode === "table" ? "Make a simple table" : "Make a child-friendly word chart"} for: ${cleanPrompt}`,
+          "answer",
+          "llama3"
+        );
+        insertAiTable(text, mode === "table" ? "Table" : "Word Chart");
+        log(`Local AI generated ${mode} for: ${cleanPrompt}`);
       } else {
         const text = await window.LocalOllamaAssistant.generateText(cleanPrompt, mode, "llama3");
         insertAiText(text, mode === "definition" ? "Definition" : "Local AI");
@@ -1578,6 +1641,19 @@ document.addEventListener("DOMContentLoaded", () => {
     redrawWhiteboard();
     log("Whiteboard cleared.");
   });
+
+  const pdfUploadInput = document.getElementById("pdf-upload-input");
+  if (pdfUploadInput) {
+    pdfUploadInput.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const viewer = document.getElementById("pdf-viewer");
+      viewer.src = url;
+      viewer.style.display = "block";
+      log(`Loaded PDF for annotation: ${file.name}`);
+    });
+  }
 
   // --- Sub-App 2: Physics Popping Game ---
   class Bubble {
@@ -1908,6 +1984,60 @@ document.addEventListener("DOMContentLoaded", () => {
   clearLogsBtn.addEventListener("click", () => {
     logTerminal.innerText = "Logs cleared.";
   });
+
+  const recordSessionBtn = document.getElementById("record-session-btn");
+  const uploadSessionBtn = document.getElementById("upload-session-btn");
+  const captionsSessionBtn = document.getElementById("captions-session-btn");
+  const recordingStatus = document.getElementById("recording-status");
+  let sessionRecorder = null;
+  let recordedChunks = [];
+
+  if (recordSessionBtn && navigator.mediaDevices?.getDisplayMedia) {
+    recordSessionBtn.addEventListener("click", async () => {
+      if (sessionRecorder && sessionRecorder.state === "recording") {
+        sessionRecorder.stop();
+        recordSessionBtn.innerText = "Start Recording";
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        recordedChunks = [];
+        sessionRecorder = new MediaRecorder(stream);
+        sessionRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) recordedChunks.push(event.data);
+        };
+        sessionRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+          recordingStatus.innerHTML = `Recording saved locally. <a href="${url}" download="cogniplay-session.webm">Download session</a>`;
+          stream.getTracks().forEach(track => track.stop());
+          log("Lecture recording stopped and saved locally.");
+        };
+        sessionRecorder.start();
+        recordSessionBtn.innerText = "Stop Recording";
+        recordingStatus.innerText = "Recording session locally...";
+        log("Lecture recording started.");
+      } catch (error) {
+        recordingStatus.innerText = "Recording permission was not granted.";
+        log("Recording failed: " + error.message);
+      }
+    });
+  }
+
+  if (uploadSessionBtn) {
+    uploadSessionBtn.addEventListener("click", () => {
+      recordingStatus.innerText = "Cloud upload is ready to connect. Add Google Drive/S3 credentials on the server to enable automatic upload.";
+      log("Cloud upload requested. Credentials are not configured yet.");
+    });
+  }
+
+  if (captionsSessionBtn) {
+    captionsSessionBtn.addEventListener("click", () => {
+      recordingStatus.innerText = "Subtitle pipeline placeholder: send recorded audio to Google Speech-to-Text or local Whisper after credentials/model setup.";
+      log("Subtitle generation requested. Speech-to-text backend is not configured yet.");
+    });
+  }
 
   // --- Navigation App Switcher ---
   document.querySelectorAll(".tab-btn").forEach(btn => {
