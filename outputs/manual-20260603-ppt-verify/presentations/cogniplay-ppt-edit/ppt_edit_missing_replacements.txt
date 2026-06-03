@@ -1,1 +1,0 @@
-Top nav → Recording. Shows Start Recording, Upload to Cloud, Start Live Subtitles buttons.
