@@ -13,7 +13,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const { spawn } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -38,6 +38,7 @@ const MIME_TYPES = {
 // ---------------------------------------------------------------------------
 let cursorBridge = null;
 let bridgeReady  = false;
+let overlayProcess = null;
 
 function startCursorBridge() {
   const bridgePath = path.join(__dirname, "cursor-bridge.py");
@@ -84,13 +85,76 @@ function sendToBridge(line) {
   }
 }
 
+function runSystemHotkey(action) {
+  const scripts = {
+    undo: 'tell application "System Events" to keystroke "z" using {command down}',
+    redo: 'tell application "System Events" to keystroke "z" using {command down, shift down}',
+    nextSpace: 'tell application "System Events" to key code 124 using {control down}',
+    previousSpace: 'tell application "System Events" to key code 123 using {control down}',
+    nextWindow: 'tell application "System Events" to key code 50 using {command down}',
+    previousWindow: 'tell application "System Events" to key code 50 using {command down, shift down}'
+  };
+
+  if (!scripts[action]) {
+    return { ok: false, error: "Unknown hotkey action" };
+  }
+
+  spawn("osascript", ["-e", scripts[action]], { stdio: "ignore" });
+  return { ok: true, action };
+}
+
+function startSystemOverlay() {
+  const swiftOverlayPath = path.join(__dirname, "system-overlay.swift");
+  const overlayBinaryPath = path.join(__dirname, ".cogniplay-overlay");
+
+  if (!fs.existsSync(swiftOverlayPath)) {
+    return { ok: false, error: "system-overlay.swift not found" };
+  }
+
+  if (overlayProcess && overlayProcess.exitCode === null) {
+    return { ok: true, running: true };
+  }
+
+  try {
+    const srcStat = fs.statSync(swiftOverlayPath);
+    const binStat = fs.existsSync(overlayBinaryPath) ? fs.statSync(overlayBinaryPath) : null;
+    if (!binStat || srcStat.mtimeMs > binStat.mtimeMs) {
+      const build = spawnSync("swiftc", [swiftOverlayPath, "-o", overlayBinaryPath], { encoding: "utf8" });
+      if (build.status !== 0) {
+        return { ok: false, error: build.stderr || "Swift overlay compile failed" };
+      }
+    }
+  } catch (error) {
+    return { ok: false, error: `Overlay compile check failed: ${error.message}` };
+  }
+
+  overlayProcess = spawn(overlayBinaryPath, [], {
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+
+  overlayProcess.stdout.on("data", (data) => {
+    console.log("[overlay]", data.toString().trim());
+  });
+
+  overlayProcess.stderr.on("data", (data) => {
+    console.error("[overlay stderr]", data.toString().trim());
+  });
+
+  overlayProcess.on("exit", () => {
+    overlayProcess = null;
+  });
+
+  return { ok: true, running: true };
+}
+
 // ---------------------------------------------------------------------------
 // HTTP Server
 // ---------------------------------------------------------------------------
 const server = http.createServer((req, res) => {
+  const requestPath = req.url.split("?")[0];
 
   // ---- POST /cursor — move system cursor ----
-  if (req.method === "POST" && req.url === "/cursor") {
+  if (req.method === "POST" && requestPath === "/cursor") {
     let body = "";
     req.on("data", chunk => (body += chunk));
     req.on("end", () => {
@@ -109,7 +173,7 @@ const server = http.createServer((req, res) => {
   }
 
   // ---- POST /cursor/down — mouse button down ----
-  if (req.method === "POST" && req.url === "/cursor/down") {
+  if (req.method === "POST" && requestPath === "/cursor/down") {
     let body = "";
     req.on("data", chunk => (body += chunk));
     req.on("end", () => {
@@ -128,7 +192,7 @@ const server = http.createServer((req, res) => {
   }
 
   // ---- POST /cursor/up — mouse button up ----
-  if (req.method === "POST" && req.url === "/cursor/up") {
+  if (req.method === "POST" && requestPath === "/cursor/up") {
     let body = "";
     req.on("data", chunk => (body += chunk));
     req.on("end", () => {
@@ -147,7 +211,7 @@ const server = http.createServer((req, res) => {
   }
 
   // ---- POST /cursor/scroll — system scroll wheel ----
-  if (req.method === "POST" && req.url === "/cursor/scroll") {
+  if (req.method === "POST" && requestPath === "/cursor/scroll") {
     let body = "";
     req.on("data", chunk => (body += chunk));
     req.on("end", () => {
@@ -166,10 +230,38 @@ const server = http.createServer((req, res) => {
   }
 
   // ---- GET /cursor/status — bridge health check ----
-  if (req.method === "GET" && req.url === "/cursor/status") {
+  if (req.method === "GET" && requestPath === "/cursor/status") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ bridgeReady }));
+    return;
+  }
+
+  // ---- POST /overlay/start — launch native system whiteboard bar ----
+  if ((req.method === "POST" || req.method === "GET") && requestPath === "/overlay/start") {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    const result = startSystemOverlay();
+    res.writeHead(result.ok ? 200 : 500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
+  // ---- POST /system/hotkey — global macOS shortcuts for hand gestures ----
+  if (req.method === "POST" && requestPath === "/system/hotkey") {
+    let body = "";
+    req.on("data", chunk => (body += chunk));
+    req.on("end", () => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      try {
+        const { action } = JSON.parse(body);
+        const result = runSystemHotkey(action);
+        res.writeHead(result.ok ? 200 : 400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(result));
+      } catch {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: "Invalid JSON" }));
+      }
+    });
     return;
   }
 
@@ -184,7 +276,7 @@ const server = http.createServer((req, res) => {
   }
 
   // ---- Static file serving ----
-  let safePath = req.url.split("?")[0];
+  let safePath = requestPath;
   if (safePath === "/") safePath = "/index.html";
 
   const cogniPrefix = "/cogniplay";
@@ -254,6 +346,9 @@ process.on("SIGINT", () => {
   if (cursorBridge) {
     cursorBridge.stdin.write("Q\n");
     cursorBridge.kill();
+  }
+  if (overlayProcess) {
+    overlayProcess.kill();
   }
   process.exit(0);
 });

@@ -100,13 +100,11 @@
                   <button class="btn tool-btn active" onclick="whiteboardSetTool('brush')">🖌️ Brush</button>
                   <button class="btn tool-btn" onclick="whiteboardSetTool('eraser')">🧼 Eraser</button>
                   <button class="btn tool-btn" onclick="whiteboardSetTool('laser')">🔴 Laser</button>
-                  <button class="btn tool-btn" onclick="whiteboardSetTool('text')">📝 Text</button>
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 10px;">
                   <button class="btn" onclick="whiteboardUndo()">↩️ Undo</button>
                   <button class="btn" onclick="whiteboardRedo()">↪️ Redo</button>
-                  <button class="btn" onclick="document.getElementById('pdf-upload-input').click()">PDF</button>
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 10px; flex-grow: 0.2;">
@@ -129,20 +127,14 @@
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 10px; flex-grow: 0.8; flex-wrap: wrap;">
-                  <input type="text" id="ai-prompt-input" placeholder="Ask local AI: draw, define, explain, or make a flowchart" style="flex-grow: 1; padding: 8px 15px; border-radius: 8px; background: rgba(0,0,0,0.5); border: 1px solid var(--accent-cyan); color: #fff; outline: none;">
+                  <input type="text" id="ai-prompt-input" placeholder="Ask local AI or make a flowchart" style="flex-grow: 1; padding: 8px 15px; border-radius: 8px; background: rgba(0,0,0,0.5); border: 1px solid var(--accent-cyan); color: #fff; outline: none;">
                   <button class="btn" onclick="toggleVirtualKeyboard()" style="padding: 8px 12px; font-size: 1.2rem;" title="On-Screen Keyboard">⌨️</button>
-                  <button class="btn btn-primary" onclick="triggerAiMagicSketch(document.getElementById('ai-prompt-input').value)" style="padding: 8px 14px;">Draw</button>
                   <button class="btn" onclick="triggerLocalAi(document.getElementById('ai-prompt-input').value, 'flowchart')" style="padding: 8px 14px;">Flowchart</button>
-                  <button class="btn" onclick="triggerLocalAi(document.getElementById('ai-prompt-input').value, 'table')" style="padding: 8px 14px;">Table</button>
-                  <button class="btn" onclick="triggerLocalAi(document.getElementById('ai-prompt-input').value, 'wordchart')" style="padding: 8px 14px;">Word Chart</button>
-                  <button class="btn" onclick="triggerLocalAi(document.getElementById('ai-prompt-input').value, 'definition')" style="padding: 8px 14px;">Define</button>
                   <button class="btn" onclick="triggerLocalAi(document.getElementById('ai-prompt-input').value, 'answer')" style="padding: 8px 14px;">Ask</button>
                 </div>
               </div>
               
-              <input id="pdf-upload-input" type="file" accept="application/pdf" style="display:none;">
               <div class="whiteboard-stage">
-                <iframe id="pdf-viewer" title="PDF viewer"></iframe>
                 <canvas id="paint-canvas"></canvas>
               </div>
               
@@ -182,14 +174,7 @@
                   <button class="btn" id="upload-session-btn">Upload to Cloud</button>
                   <button class="btn" id="captions-session-btn">Generate Subtitles</button>
                 </div>
-                <div id="recording-status" class="recording-status">Ready. Google Speech-to-Text and cloud upload need API credentials in server settings.</div>
-              </section>
-              <section class="glass-panel recording-card">
-                <h3>Platform Topics</h3>
-                <div class="topic-grid">
-                  <span>Pattern Play</span><span>Maze Tracing</span><span>Shape Sorting</span><span>Shadow Match</span>
-                  <span>Memory Lights</span><span>Cause and Effect</span><span>Counting Play</span><span>Drawing Studio</span>
-                </div>
+                <div id="recording-status" class="recording-status">Ready for full system screen recording with camera picture-in-picture. Google Speech-to-Text and cloud upload need API credentials in server settings.</div>
               </section>
             </div>
           </div>
@@ -264,6 +249,12 @@
         </button>
         <div style="font-size: 0.75rem; color: var(--text-secondary); text-align: center; margin-top: 4px;">
           Secure local SSL/webcam stream required.
+        </div>
+        <div class="system-window-actions">
+          <button class="btn" id="open-cogniplay-window">Open CogniPlay Window</button>
+          <button class="btn" id="open-calibration-window">Open Calibration Window</button>
+          <button class="btn" id="open-recording-window">Open Recording Window</button>
+          <button class="btn" id="open-os-overlay-btn">Open OS Whiteboard Bar</button>
         </div>
       </section>
 

@@ -28,10 +28,10 @@ class TouchWallTracker {
     // -----------------------------------------------------------------------
     // Sensitivity thresholds
     // -----------------------------------------------------------------------
-    this.pinchThreshold        = options.pinchThreshold        ?? 0.24;  // Scale-normalised ratio
-    this.pinchReleaseThreshold = this.pinchThreshold * 1.4;              // Wider hysteresis band
+    this.pinchThreshold        = options.pinchThreshold        ?? 0.25;  // Scale-normalised ratio
+    this.pinchReleaseThreshold = options.pinchReleaseThreshold ?? this.pinchThreshold * 1.6;
     this.pinchFramesRequired   = options.pinchFramesRequired   ?? 2;     // Frames needed to confirm pinch
-    this.pinchVelocityGate     = options.pinchVelocityGate     ?? 1.10;  // Max normalised velocity to allow pinch
+    this.pinchVelocityGate     = options.pinchVelocityGate     ?? 1.20;  // Max normalised velocity to allow pinch
 
     this.dwellDuration         = options.dwellDuration         ?? 1000;  // ms
     this.dwellRadius           = options.dwellRadius           ?? 20;    // px
@@ -304,10 +304,13 @@ class TouchWallTracker {
 
     const dist           = this.get3DDistance(thumbTip, indexTip);
     const normalizedDist = dist / (handScale || 0.01);
+    const thumbMiddleDist = this.get3DDistance(thumbTip, lm[12]) / (handScale || 0.01);
+    const thumbRingDist = this.get3DDistance(thumbTip, lm[16]) / (handScale || 0.01);
+    const isolatedPinch = thumbMiddleDist > this.pinchThreshold * 1.2 && thumbRingDist > this.pinchThreshold * 1.35;
 
     if (!this.isPinching) {
       // GATE: reject pinch when hand is moving fast
-      if (this.handVelocity > this.pinchVelocityGate) {
+      if (this.handVelocity > this.pinchVelocityGate || !isolatedPinch) {
         this.pinchFrameCount = 0;
       } else if (normalizedDist < this.pinchThreshold) {
         this.pinchFrameCount++;

@@ -93,6 +93,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let systemScrollEnabled = true;
   let scrollPoseActive = false;
   let lastScrollY = null;
+  let gesturePose = null;
+  let gestureStart = null;
+  let lastGestureActionTime = 0;
   let lastScrollSendTime = 0;
   let lastCursorSendTime = 0;
   let bridgeOnline = false;
@@ -126,7 +129,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function isFingerExtended(landmarks, tipIndex, pipIndex, mcpIndex) {
-    return landmarks[tipIndex].y < landmarks[pipIndex].y && landmarks[pipIndex].y < landmarks[mcpIndex].y;
+    const tip = landmarks[tipIndex];
+    const pip = landmarks[pipIndex];
+    const mcp = landmarks[mcpIndex];
+    const verticalReach = mcp.y - tip.y;
+    const fingerLength = getLandmarkDistance(tip, mcp) || 0.01;
+    return verticalReach > fingerLength * 0.25 && tip.y < pip.y + fingerLength * 0.08;
   }
 
   function getLandmarkDistance(a, b) {
@@ -141,27 +149,79 @@ document.addEventListener("DOMContentLoaded", () => {
     const pinkyExtended = isFingerExtended(landmarks, 20, 18, 17);
     const handScale = getLandmarkDistance(landmarks[0], landmarks[9]) || 0.01;
     const pinchDistance = getLandmarkDistance(landmarks[4], landmarks[8]) / handScale;
-    return indexExtended && middleExtended && !ringExtended && !pinkyExtended && pinchDistance > 0.35;
+    return indexExtended && middleExtended && !ringExtended && !pinkyExtended && pinchDistance > 0.28;
   }
 
-  function updateSystemScroll(landmarks) {
+  function isOpenHandWindowPose(landmarks) {
+    if (!landmarks) return false;
+    const indexExtended = isFingerExtended(landmarks, 8, 6, 5);
+    const middleExtended = isFingerExtended(landmarks, 12, 10, 9);
+    const ringExtended = isFingerExtended(landmarks, 16, 14, 13);
+    const pinkyExtended = isFingerExtended(landmarks, 20, 18, 17);
+    const handScale = getLandmarkDistance(landmarks[0], landmarks[9]) || 0.01;
+    const pinchDistance = getLandmarkDistance(landmarks[4], landmarks[8]) / handScale;
+    return indexExtended && middleExtended && ringExtended && pinkyExtended && pinchDistance > 0.28;
+  }
+
+  function sendSystemHotkey(action) {
+    fetch('/system/hotkey', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    }).catch(() => {});
+  }
+
+  function updateSystemGestures(landmarks) {
     if (!systemCursorMode || !systemScrollEnabled || !bridgeOnline || isClickDown) {
       scrollPoseActive = false;
       lastScrollY = null;
+      gesturePose = null;
+      gestureStart = null;
       return;
     }
 
-    const pose = isTwoFingerScrollPose(landmarks);
+    const twoFingerPose = isTwoFingerScrollPose(landmarks);
+    const openHandPose = isOpenHandWindowPose(landmarks);
+    const pose = openHandPose ? "open" : twoFingerPose ? "two" : null;
+
     if (!pose) {
       scrollPoseActive = false;
       lastScrollY = null;
+      gesturePose = null;
+      gestureStart = null;
       customCursor.classList.remove("scrolling");
       return;
     }
 
     customCursor.classList.add("scrolling");
-    if (!scrollPoseActive) {
+    if (!scrollPoseActive || gesturePose !== pose) {
       scrollPoseActive = true;
+      gesturePose = pose;
+      gestureStart = { x: cursorX, y: cursorY };
+      lastScrollY = cursorY;
+      return;
+    }
+
+    if (!gestureStart) gestureStart = { x: cursorX, y: cursorY };
+    const totalDx = cursorX - gestureStart.x;
+    const totalDy = cursorY - gestureStart.y;
+    const now = performance.now();
+
+    if (pose === "open") {
+      if (now - lastGestureActionTime > 520 && Math.abs(totalDx) > 46 && Math.abs(totalDx) > Math.abs(totalDy) * 1.08) {
+        lastGestureActionTime = now;
+        sendSystemHotkey(totalDx < 0 ? "nextSpace" : "previousSpace");
+        log(totalDx < 0 ? "Open-hand swipe left: next macOS space." : "Open-hand swipe right: previous macOS space.");
+        gestureStart = { x: cursorX, y: cursorY };
+      }
+      return;
+    }
+
+    if (now - lastGestureActionTime > 430 && Math.abs(totalDx) > 42 && Math.abs(totalDx) > Math.abs(totalDy) * 1.12) {
+      lastGestureActionTime = now;
+      sendSystemHotkey(totalDx < 0 ? "undo" : "redo");
+      log(totalDx < 0 ? "Two-finger swipe left: Undo." : "Two-finger swipe right: Redo.");
+      gestureStart = { x: cursorX, y: cursorY };
       lastScrollY = cursorY;
       return;
     }
@@ -169,14 +229,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const dy = cursorY - lastScrollY;
     lastScrollY = cursorY;
 
-    const now = performance.now();
-    if (Math.abs(dy) < 2 || now - lastScrollSendTime < SCROLL_SEND_INTERVAL_MS) return;
+    if (Math.abs(totalDy) < Math.abs(totalDx) * 0.45) return;
+    if (Math.abs(dy) < 1.1 || now - lastScrollSendTime < SCROLL_SEND_INTERVAL_MS) return;
 
     lastScrollSendTime = now;
     fetch('/cursor/scroll', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dx: 0, dy: dy * 1.6 })
+      body: JSON.stringify({ dx: 0, dy: -dy * 3.2 })
     }).catch(() => {});
   }
 
@@ -670,9 +730,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         tracker = new TouchWallTracker({
           videoElement:        webcamFeed,
-          pinchThreshold:      0.24,
+          pinchThreshold:      0.25,
+          pinchReleaseThreshold: 0.40,
           pinchFramesRequired: 2,
-          pinchVelocityGate:   1.10,
+          pinchVelocityGate:   1.2,
           dwellDuration:       parseInt(clickTriggerMode.value === "dwell" ? 1000 : 99999),
           depthTapThreshold:   calibratedTouchThreshold,
           distanceFromScreen:  distCm,
@@ -686,6 +747,9 @@ document.addEventListener("DOMContentLoaded", () => {
         topStatusText.innerText = "CV Active";
         topStatusBadge.querySelector(".status-indicator-dot").style.backgroundColor = "var(--accent-green)";
         customCursor.style.display = "block";
+        systemCursorMode = true;
+        const systemCursorToggle = document.getElementById("system-cursor-toggle");
+        if (systemCursorToggle) systemCursorToggle.checked = true;
         
         log("Webcam started. Loading MediaPipe Models...");
       } catch (err) {
@@ -895,7 +959,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      updateSystemScroll(landmarks);
+      updateSystemGestures(landmarks);
       
       // 3. EXECUTE APP DRAWING AND GAME HIT INTERACTIONS
       if (isClickDown) {
@@ -1444,15 +1508,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function insertAiTable(text, title = "Table") {
-    const rows = String(text || "")
-      .split("\n")
-      .map(line => line.trim())
-      .filter(Boolean)
-      .slice(0, 8);
-    insertAiText(rows.length ? rows.join("\n") : "Term | Meaning\nFirst | Main idea\nNext | Detail", title);
-  }
-
   window.triggerLocalAi = async function(prompt, mode) {
     const input = document.getElementById('ai-prompt-input');
     const cleanPrompt = String(prompt || "").trim();
@@ -1464,17 +1519,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const chart = await window.LocalOllamaAssistant.generateFlowchart(cleanPrompt, "llama3");
         insertAiFlowchart(chart);
         log("Local AI generated flowchart for: " + cleanPrompt);
-      } else if (mode === "table" || mode === "wordchart") {
-        const text = await window.LocalOllamaAssistant.generateText(
-          `${mode === "table" ? "Make a simple table" : "Make a child-friendly word chart"} for: ${cleanPrompt}`,
-          "answer",
-          "llama3"
-        );
-        insertAiTable(text, mode === "table" ? "Table" : "Word Chart");
-        log(`Local AI generated ${mode} for: ${cleanPrompt}`);
       } else {
         const text = await window.LocalOllamaAssistant.generateText(cleanPrompt, mode, "llama3");
-        insertAiText(text, mode === "definition" ? "Definition" : "Local AI");
+        insertAiText(text, "Local AI");
         log("Local AI generated answer for: " + cleanPrompt);
       }
     } finally {
@@ -1482,50 +1529,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
   
-  window.triggerAiMagicSketch = async function(prompt) {
-    if (!window.MagicSketchGenerator) return;
-    const rect = paintCanvas.getBoundingClientRect();
-    
-    // UI feedback
-    const originalPrompt = document.getElementById('ai-prompt-input').value;
-    document.getElementById('ai-prompt-input').value = "✨ Generating with Ollama...";
-    
-    let paths = null;
-    if (window.OllamaGenerativeAI) {
-      paths = await window.OllamaGenerativeAI.fetchAndParse(prompt, rect.width, rect.height, "llama3");
-    }
-    
-    if (!paths) {
-      log("Ollama fallback: Using procedural shapes.");
-      paths = window.MagicSketchGenerator.generateSketch(prompt, rect.width, rect.height);
-    }
-    
-    document.getElementById('ai-prompt-input').value = ""; // clear after done
-    
-    // Draw paths animatedly
-    paths.forEach((path, pathIdx) => {
-      let stroke = {
-        tool: "brush",
-        color: activeDrawColor,
-        size: brushSize,
-        points: [],
-        startTime: Date.now()
-      };
-      whiteboardHistory.push(stroke);
-      let pointIdx = 0;
-      const drawStep = () => {
-        if (pointIdx < path.length) {
-          stroke.points.push(path[pointIdx]);
-          redrawWhiteboard();
-          pointIdx++;
-          setTimeout(drawStep, 30); // 30ms between points
-        }
-      };
-      setTimeout(drawStep, pathIdx * 500); // offset each path
-    });
-    log("AI Magic Sketch executed for: " + prompt);
-  };
-
   // --- Virtual Keyboard ---
   const keyboardLayout = [
     ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
@@ -1641,19 +1644,6 @@ document.addEventListener("DOMContentLoaded", () => {
     redrawWhiteboard();
     log("Whiteboard cleared.");
   });
-
-  const pdfUploadInput = document.getElementById("pdf-upload-input");
-  if (pdfUploadInput) {
-    pdfUploadInput.addEventListener("change", (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      const viewer = document.getElementById("pdf-viewer");
-      viewer.src = url;
-      viewer.style.display = "block";
-      log(`Loaded PDF for annotation: ${file.name}`);
-    });
-  }
 
   // --- Sub-App 2: Physics Popping Game ---
   class Bubble {
@@ -1989,8 +1979,92 @@ document.addEventListener("DOMContentLoaded", () => {
   const uploadSessionBtn = document.getElementById("upload-session-btn");
   const captionsSessionBtn = document.getElementById("captions-session-btn");
   const recordingStatus = document.getElementById("recording-status");
+  const openCogniPlayWindowBtn = document.getElementById("open-cogniplay-window");
+  const openCalibrationWindowBtn = document.getElementById("open-calibration-window");
+  const openRecordingWindowBtn = document.getElementById("open-recording-window");
+  const openOsOverlayBtn = document.getElementById("open-os-overlay-btn");
   let sessionRecorder = null;
   let recordedChunks = [];
+  let recordingAnimationId = null;
+  let recordingStreams = [];
+
+  function stopRecordingStreams() {
+    recordingStreams.forEach(stream => {
+      stream.getTracks().forEach(track => track.stop());
+    });
+    recordingStreams = [];
+    if (recordingAnimationId) {
+      cancelAnimationFrame(recordingAnimationId);
+      recordingAnimationId = null;
+    }
+  }
+
+  async function createScreenCameraStream() {
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { displaySurface: "monitor" },
+      audio: true
+    });
+    recordingStreams.push(screenStream);
+
+    let cameraStream = null;
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 360 },
+        audio: true
+      });
+      recordingStreams.push(cameraStream);
+    } catch (error) {
+      log("Camera picture-in-picture unavailable: " + error.message);
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 1280;
+    canvas.height = 720;
+    const ctx = canvas.getContext("2d");
+    const screenVideo = document.createElement("video");
+    screenVideo.srcObject = screenStream;
+    screenVideo.muted = true;
+    screenVideo.playsInline = true;
+    await screenVideo.play();
+
+    let cameraVideo = null;
+    if (cameraStream) {
+      cameraVideo = document.createElement("video");
+      cameraVideo.srcObject = cameraStream;
+      cameraVideo.muted = true;
+      cameraVideo.playsInline = true;
+      await cameraVideo.play();
+    }
+
+    function drawRecordingFrame() {
+      ctx.fillStyle = "#111111";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(screenVideo, 0, 0, canvas.width, canvas.height);
+
+      if (cameraVideo) {
+        const pipWidth = 260;
+        const pipHeight = 146;
+        const pipX = canvas.width - pipWidth - 28;
+        const pipY = canvas.height - pipHeight - 28;
+        ctx.save();
+        ctx.shadowColor = "rgba(0, 0, 0, 0.24)";
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = "#fffdfa";
+        ctx.fillRect(pipX - 6, pipY - 6, pipWidth + 12, pipHeight + 12);
+        ctx.drawImage(cameraVideo, pipX, pipY, pipWidth, pipHeight);
+        ctx.restore();
+      }
+
+      recordingAnimationId = requestAnimationFrame(drawRecordingFrame);
+    }
+
+    drawRecordingFrame();
+
+    const mixedStream = canvas.captureStream(30);
+    [...screenStream.getAudioTracks(), ...(cameraStream ? cameraStream.getAudioTracks() : [])]
+      .forEach(track => mixedStream.addTrack(track));
+    return mixedStream;
+  }
 
   if (recordSessionBtn && navigator.mediaDevices?.getDisplayMedia) {
     recordSessionBtn.addEventListener("click", async () => {
@@ -2001,9 +2075,12 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        const stream = await createScreenCameraStream();
         recordedChunks = [];
-        sessionRecorder = new MediaRecorder(stream);
+        const recorderOptions = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
+          ? { mimeType: "video/webm;codecs=vp9,opus" }
+          : undefined;
+        sessionRecorder = new MediaRecorder(stream, recorderOptions);
         sessionRecorder.ondataavailable = (event) => {
           if (event.data.size > 0) recordedChunks.push(event.data);
         };
@@ -2012,15 +2089,48 @@ document.addEventListener("DOMContentLoaded", () => {
           const url = URL.createObjectURL(blob);
           recordingStatus.innerHTML = `Recording saved locally. <a href="${url}" download="cogniplay-session.webm">Download session</a>`;
           stream.getTracks().forEach(track => track.stop());
+          stopRecordingStreams();
           log("Lecture recording stopped and saved locally.");
         };
         sessionRecorder.start();
         recordSessionBtn.innerText = "Stop Recording";
-        recordingStatus.innerText = "Recording session locally...";
-        log("Lecture recording started.");
+        recordingStatus.innerText = "Recording the selected system screen with camera picture-in-picture...";
+        log("Lecture recording started with system screen and camera.");
       } catch (error) {
+        stopRecordingStreams();
         recordingStatus.innerText = "Recording permission was not granted.";
         log("Recording failed: " + error.message);
+      }
+    });
+  }
+
+  if (openCogniPlayWindowBtn) {
+    openCogniPlayWindowBtn.addEventListener("click", () => {
+      window.open("/cogniplay/", "cogniplay-window", "width=1280,height=900");
+    });
+  }
+
+  if (openCalibrationWindowBtn) {
+    openCalibrationWindowBtn.addEventListener("click", () => {
+      window.open("/?mode=calibration", "calibration-window", "width=1120,height=820");
+    });
+  }
+
+  if (openRecordingWindowBtn) {
+    openRecordingWindowBtn.addEventListener("click", () => {
+      window.open("/?mode=recording", "recording-window", "width=1040,height=720");
+    });
+  }
+
+  if (openOsOverlayBtn) {
+    openOsOverlayBtn.addEventListener("click", async () => {
+      try {
+        const response = await fetch("/overlay/start", { method: "POST" });
+        const result = await response.json();
+        if (!result.ok) throw new Error(result.error || "Overlay failed to start.");
+        log("Native OS whiteboard bar launched.");
+      } catch (error) {
+        log("Native overlay launch failed: " + error.message);
       }
     });
   }
@@ -2040,27 +2150,43 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // --- Navigation App Switcher ---
+  function switchApp(appName) {
+    const tab = document.querySelector(`.tab-btn[data-app="${appName}"]`);
+    const view = document.getElementById(`app-${appName}`);
+    const activeTab = document.querySelector(".tab-btn.active");
+    const activeView = document.querySelector(".app-view.active");
+    if (!tab || !view) return;
+
+    if (activeTab) activeTab.classList.remove("active");
+    if (activeView) activeView.classList.remove("active");
+
+    tab.classList.add("active");
+    view.classList.add("active");
+
+    if (currentActiveApp === "game" && appName !== "game" && isGameActive) {
+      endGame();
+    }
+
+    currentActiveApp = appName;
+    log(`App switched to: ${appName.toUpperCase()}`);
+    setTimeout(resizeCanvases, 50);
+  }
+
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      document.querySelector(".tab-btn.active").classList.remove("active");
-      document.querySelector(".app-view.active").classList.remove("active");
-      
-      btn.classList.add("active");
-      const appName = btn.getAttribute("data-app");
-      document.getElementById(`app-${appName}`).classList.add("active");
-      
-      // Cleanup game loops if they navigated away
-      if (currentActiveApp === "game" && appName !== "game" && isGameActive) {
-        endGame();
-      }
-
-      currentActiveApp = appName;
-      log(`App switched to: ${appName.toUpperCase()}`);
-      
-      // Resize standard frames
-      setTimeout(resizeCanvases, 50);
+      switchApp(btn.getAttribute("data-app"));
     });
   });
+
+  const startupMode = new URLSearchParams(window.location.search).get("mode");
+  if (startupMode === "recording") {
+    setTimeout(() => switchApp("recording"), 50);
+  } else if (startupMode === "calibration") {
+    setTimeout(() => {
+      switchApp("debugger");
+      startCalibration();
+    }, 300);
+  }
 
   // --- Invert X (Mirroring) Control ---
   const flipXToggle = document.getElementById("flip-x-toggle");

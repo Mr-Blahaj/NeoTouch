@@ -621,6 +621,19 @@ header h2 {
   line-height: 1.5;
 }
 
+.system-window-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.system-window-actions .btn {
+  padding: 9px 12px;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
 .topic-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
