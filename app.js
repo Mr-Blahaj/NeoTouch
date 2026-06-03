@@ -90,24 +90,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // System Cursor Mode
   let systemCursorMode = false;
-  let systemScrollEnabled = true;
-  let scrollPoseActive = false;
-  let lastScrollY = null;
-  let gesturePose = null;
-  let gestureStart = null;
-  let lastGestureActionTime = 0;
-  let lastScrollSendTime = 0;
   let lastCursorSendTime = 0;
   let bridgeOnline = false;
   const CURSOR_SEND_INTERVAL_MS = 14; // ~70fps cap
-  const SCROLL_SEND_INTERVAL_MS = 24;
 
   function getSystemScreenPoint(clientX, clientY) {
     const borderX = Math.max(0, (window.outerWidth - window.innerWidth) / 2);
     const chromeY = Math.max(0, window.outerHeight - window.innerHeight - borderX);
+    const viewportX = window.visualViewport?.offsetLeft || 0;
+    const viewportY = window.visualViewport?.offsetTop || 0;
     return {
-      x: Math.round(window.screenX + borderX + clientX),
-      y: Math.round(window.screenY + chromeY + clientY)
+      x: Math.round(window.screenX + borderX + viewportX + clientX),
+      y: Math.round(window.screenY + chromeY + viewportY + clientY)
     };
   }
 
@@ -126,118 +120,6 @@ document.addEventListener("DOMContentLoaded", () => {
       right: fallbackWidth,
       bottom: window.innerHeight
     };
-  }
-
-  function isFingerExtended(landmarks, tipIndex, pipIndex, mcpIndex) {
-    const tip = landmarks[tipIndex];
-    const pip = landmarks[pipIndex];
-    const mcp = landmarks[mcpIndex];
-    const verticalReach = mcp.y - tip.y;
-    const fingerLength = getLandmarkDistance(tip, mcp) || 0.01;
-    return verticalReach > fingerLength * 0.25 && tip.y < pip.y + fingerLength * 0.08;
-  }
-
-  function getLandmarkDistance(a, b) {
-    return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2);
-  }
-
-  function isTwoFingerScrollPose(landmarks) {
-    if (!landmarks) return false;
-    const indexExtended = isFingerExtended(landmarks, 8, 6, 5);
-    const middleExtended = isFingerExtended(landmarks, 12, 10, 9);
-    const ringExtended = isFingerExtended(landmarks, 16, 14, 13);
-    const pinkyExtended = isFingerExtended(landmarks, 20, 18, 17);
-    const handScale = getLandmarkDistance(landmarks[0], landmarks[9]) || 0.01;
-    const pinchDistance = getLandmarkDistance(landmarks[4], landmarks[8]) / handScale;
-    return indexExtended && middleExtended && !ringExtended && !pinkyExtended && pinchDistance > 0.28;
-  }
-
-  function isOpenHandWindowPose(landmarks) {
-    if (!landmarks) return false;
-    const indexExtended = isFingerExtended(landmarks, 8, 6, 5);
-    const middleExtended = isFingerExtended(landmarks, 12, 10, 9);
-    const ringExtended = isFingerExtended(landmarks, 16, 14, 13);
-    const pinkyExtended = isFingerExtended(landmarks, 20, 18, 17);
-    const handScale = getLandmarkDistance(landmarks[0], landmarks[9]) || 0.01;
-    const pinchDistance = getLandmarkDistance(landmarks[4], landmarks[8]) / handScale;
-    return indexExtended && middleExtended && ringExtended && pinkyExtended && pinchDistance > 0.28;
-  }
-
-  function sendSystemHotkey(action) {
-    fetch('/system/hotkey', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action })
-    }).catch(() => {});
-  }
-
-  function updateSystemGestures(landmarks) {
-    if (!systemCursorMode || !systemScrollEnabled || !bridgeOnline || isClickDown) {
-      scrollPoseActive = false;
-      lastScrollY = null;
-      gesturePose = null;
-      gestureStart = null;
-      return;
-    }
-
-    const twoFingerPose = isTwoFingerScrollPose(landmarks);
-    const openHandPose = isOpenHandWindowPose(landmarks);
-    const pose = openHandPose ? "open" : twoFingerPose ? "two" : null;
-
-    if (!pose) {
-      scrollPoseActive = false;
-      lastScrollY = null;
-      gesturePose = null;
-      gestureStart = null;
-      customCursor.classList.remove("scrolling");
-      return;
-    }
-
-    customCursor.classList.add("scrolling");
-    if (!scrollPoseActive || gesturePose !== pose) {
-      scrollPoseActive = true;
-      gesturePose = pose;
-      gestureStart = { x: cursorX, y: cursorY };
-      lastScrollY = cursorY;
-      return;
-    }
-
-    if (!gestureStart) gestureStart = { x: cursorX, y: cursorY };
-    const totalDx = cursorX - gestureStart.x;
-    const totalDy = cursorY - gestureStart.y;
-    const now = performance.now();
-
-    if (pose === "open") {
-      if (now - lastGestureActionTime > 520 && Math.abs(totalDx) > 46 && Math.abs(totalDx) > Math.abs(totalDy) * 1.08) {
-        lastGestureActionTime = now;
-        sendSystemHotkey(totalDx < 0 ? "nextSpace" : "previousSpace");
-        log(totalDx < 0 ? "Open-hand swipe left: next macOS space." : "Open-hand swipe right: previous macOS space.");
-        gestureStart = { x: cursorX, y: cursorY };
-      }
-      return;
-    }
-
-    if (now - lastGestureActionTime > 430 && Math.abs(totalDx) > 42 && Math.abs(totalDx) > Math.abs(totalDy) * 1.12) {
-      lastGestureActionTime = now;
-      sendSystemHotkey(totalDx < 0 ? "undo" : "redo");
-      log(totalDx < 0 ? "Two-finger swipe left: Undo." : "Two-finger swipe right: Redo.");
-      gestureStart = { x: cursorX, y: cursorY };
-      lastScrollY = cursorY;
-      return;
-    }
-
-    const dy = cursorY - lastScrollY;
-    lastScrollY = cursorY;
-
-    if (Math.abs(totalDy) < Math.abs(totalDx) * 0.45) return;
-    if (Math.abs(dy) < 1.1 || now - lastScrollSendTime < SCROLL_SEND_INTERVAL_MS) return;
-
-    lastScrollSendTime = now;
-    fetch('/cursor/scroll', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dx: 0, dy: -dy * 3.2 })
-    }).catch(() => {});
   }
 
   // Check bridge status every 3 seconds
@@ -959,8 +841,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      updateSystemGestures(landmarks);
-      
       // 3. EXECUTE APP DRAWING AND GAME HIT INTERACTIONS
       if (isClickDown) {
         forwardActivePointerMove();
@@ -1430,16 +1310,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (enabled && !bridgeOnline) {
       log("⚠️  Cursor bridge not ready. Make sure Node.js (Terminal) has Accessibility access in System Settings.");
     }
-  };
-
-  window.toggleSystemScroll = function(enabled) {
-    systemScrollEnabled = enabled;
-    if (!enabled) {
-      scrollPoseActive = false;
-      lastScrollY = null;
-      customCursor.classList.remove("scrolling");
-    }
-    log(enabled ? "System scroll ENABLED — two-finger hand pose scrolls the OS." : "System scroll disabled.");
   };
 
   window.setGridDivisions = function(value) {
@@ -1983,10 +1853,100 @@ document.addEventListener("DOMContentLoaded", () => {
   const openCalibrationWindowBtn = document.getElementById("open-calibration-window");
   const openRecordingWindowBtn = document.getElementById("open-recording-window");
   const openOsOverlayBtn = document.getElementById("open-os-overlay-btn");
+  const liveCaptionPreview = document.getElementById("live-caption-preview");
   let sessionRecorder = null;
   let recordedChunks = [];
   let recordingAnimationId = null;
   let recordingStreams = [];
+  let liveCaptionText = "";
+  let captionsActive = false;
+  let captionRecorder = null;
+  let captionMicStream = null;
+  let captionBusy = false;
+
+  function ensureLiveCaptionBar() {
+    let bar = document.getElementById("live-caption-bar");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "live-caption-bar";
+      bar.className = "live-caption-bar";
+      document.body.appendChild(bar);
+    }
+    return bar;
+  }
+
+  function updateLiveCaption(text) {
+    liveCaptionText = String(text || "").trim();
+    const displayText = liveCaptionText || (captionsActive ? "Listening..." : "");
+    const bar = ensureLiveCaptionBar();
+    bar.textContent = displayText;
+    bar.style.display = captionsActive ? "block" : "none";
+    if (liveCaptionPreview) {
+      liveCaptionPreview.textContent = displayText || "Live subtitles will appear here and at the bottom of recordings.";
+    }
+  }
+
+  async function transcribeCaptionChunk(blob) {
+    if (!captionsActive || captionBusy || blob.size < 1024) return;
+    captionBusy = true;
+    try {
+      const response = await fetch("/caption/local", {
+        method: "POST",
+        headers: { "Content-Type": blob.type || "audio/webm" },
+        body: blob,
+      });
+      const result = await response.json();
+      if (result.ok && result.text) {
+        updateLiveCaption(result.text);
+        recordingStatus.innerText = `Local subtitles active via ${result.engine}.`;
+      } else if (!result.ok) {
+        recordingStatus.innerText = result.error || "Local subtitle transcription failed.";
+      }
+    } catch (error) {
+      recordingStatus.innerText = "Local subtitle request failed: " + error.message;
+    } finally {
+      captionBusy = false;
+    }
+  }
+
+  async function startLiveSubtitles() {
+    try {
+      const statusResponse = await fetch("/caption/status");
+      const status = await statusResponse.json();
+      if (!status.ok) {
+        recordingStatus.innerText = "Local subtitles need Whisper installed. Install `whisper` or `whisper-cli`, then restart the server.";
+        updateLiveCaption("Local Whisper is not installed yet.");
+        return;
+      }
+
+      captionMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
+      captionRecorder = new MediaRecorder(captionMicStream, { mimeType });
+      captionRecorder.ondataavailable = (event) => transcribeCaptionChunk(event.data);
+      captionRecorder.onstop = () => {
+        captionMicStream?.getTracks().forEach(track => track.stop());
+        captionMicStream = null;
+      };
+      captionsActive = true;
+      updateLiveCaption("Listening locally...");
+      captionRecorder.start(5500);
+      captionsSessionBtn.innerText = "Stop Live Subtitles";
+      recordingStatus.innerText = `Local subtitles active via ${status.engine} (${status.model}).`;
+    } catch (error) {
+      captionsActive = false;
+      recordingStatus.innerText = "Could not start local subtitles: " + error.message;
+    }
+  }
+
+  function stopLiveSubtitles() {
+    captionsActive = false;
+    if (captionRecorder && captionRecorder.state !== "inactive") captionRecorder.stop();
+    captionRecorder = null;
+    captionMicStream?.getTracks().forEach(track => track.stop());
+    captionMicStream = null;
+    captionsSessionBtn.innerText = "Start Live Subtitles";
+    updateLiveCaption("");
+  }
 
   function stopRecordingStreams() {
     recordingStreams.forEach(stream => {
@@ -2052,6 +2012,22 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = "#fffdfa";
         ctx.fillRect(pipX - 6, pipY - 6, pipWidth + 12, pipHeight + 12);
         ctx.drawImage(cameraVideo, pipX, pipY, pipWidth, pipHeight);
+        ctx.restore();
+      }
+
+      const caption = liveCaptionText || (captionsActive ? "Listening..." : "");
+      if (caption) {
+        const stripHeight = 82;
+        ctx.save();
+        ctx.fillStyle = "rgba(17, 17, 17, 0.86)";
+        ctx.fillRect(0, canvas.height - stripHeight, canvas.width, stripHeight);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "600 30px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const maxWidth = canvas.width - 120;
+        const clipped = caption.length > 120 ? caption.slice(-120) : caption;
+        ctx.fillText(clipped, canvas.width / 2, canvas.height - stripHeight / 2, maxWidth);
         ctx.restore();
       }
 
@@ -2144,8 +2120,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (captionsSessionBtn) {
     captionsSessionBtn.addEventListener("click", () => {
-      recordingStatus.innerText = "Subtitle pipeline placeholder: send recorded audio to Google Speech-to-Text or local Whisper after credentials/model setup.";
-      log("Subtitle generation requested. Speech-to-text backend is not configured yet.");
+      if (captionsActive) {
+        stopLiveSubtitles();
+        recordingStatus.innerText = "Live subtitles stopped.";
+        log("Live subtitles stopped.");
+      } else {
+        startLiveSubtitles();
+        log("Live subtitles requested.");
+      }
     });
   }
 

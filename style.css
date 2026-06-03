@@ -621,6 +621,36 @@ header h2 {
   line-height: 1.5;
 }
 
+.live-caption-preview {
+  min-height: 56px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #111111;
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.live-caption-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  width: min(980px, calc(100vw - 48px));
+  min-height: 54px;
+  padding: 14px 22px;
+  border-radius: 8px;
+  background: rgba(17, 17, 17, 0.88);
+  color: #ffffff;
+  font-size: 1.15rem;
+  line-height: 1.35;
+  text-align: center;
+  z-index: 10000;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  display: none;
+}
+
 .system-window-actions {
   display: grid;
   grid-template-columns: 1fr;

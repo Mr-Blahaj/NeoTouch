@@ -12,6 +12,7 @@
 
 const http = require("http");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 
@@ -85,22 +86,59 @@ function sendToBridge(line) {
   }
 }
 
-function runSystemHotkey(action) {
-  const scripts = {
-    undo: 'tell application "System Events" to keystroke "z" using {command down}',
-    redo: 'tell application "System Events" to keystroke "z" using {command down, shift down}',
-    nextSpace: 'tell application "System Events" to key code 124 using {control down}',
-    previousSpace: 'tell application "System Events" to key code 123 using {control down}',
-    nextWindow: 'tell application "System Events" to key code 50 using {command down}',
-    previousWindow: 'tell application "System Events" to key code 50 using {command down, shift down}'
-  };
+function findCommand(name) {
+  const result = spawnSync("zsh", ["-lc", `command -v ${name}`], { encoding: "utf8" });
+  return result.status === 0 ? result.stdout.trim() : "";
+}
 
-  if (!scripts[action]) {
-    return { ok: false, error: "Unknown hotkey action" };
+function captionEngineStatus() {
+  const whisper = findCommand("whisper");
+  const whisperCli = findCommand("whisper-cli") || findCommand("whisper-cpp");
+  return {
+    ok: Boolean(whisper || whisperCli),
+    engine: whisper ? "openai-whisper" : whisperCli ? "whisper.cpp" : null,
+    command: whisper || whisperCli || null,
+    model: process.env.WHISPER_MODEL || process.env.WHISPER_CPP_MODEL || "base",
+  };
+}
+
+function transcribeLocalAudio(inputPath) {
+  const status = captionEngineStatus();
+  if (!status.ok) {
+    return {
+      ok: false,
+      error: "No local Whisper engine found. Install `whisper` or `whisper-cli` and restart the server.",
+    };
   }
 
-  spawn("osascript", ["-e", scripts[action]], { stdio: "ignore" });
-  return { ok: true, action };
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "neotouch-caption-out-"));
+  if (status.engine === "openai-whisper") {
+    const run = spawnSync(status.command, [
+      inputPath,
+      "--model", process.env.WHISPER_MODEL || "base",
+      "--language", "en",
+      "--task", "transcribe",
+      "--output_format", "txt",
+      "--output_dir", outDir,
+    ], { encoding: "utf8", timeout: 120000 });
+
+    const txtPath = path.join(outDir, `${path.basename(inputPath, path.extname(inputPath))}.txt`);
+    const text = fs.existsSync(txtPath) ? fs.readFileSync(txtPath, "utf8").trim() : "";
+    return run.status === 0 ? { ok: true, text, engine: status.engine } : { ok: false, error: run.stderr || run.stdout || "Whisper failed" };
+  }
+
+  const modelPath = process.env.WHISPER_CPP_MODEL || process.env.WHISPER_MODEL;
+  if (!modelPath) {
+    return { ok: false, error: "Set WHISPER_CPP_MODEL to a local whisper.cpp .bin model path." };
+  }
+  const outPrefix = path.join(outDir, "caption");
+  const run = spawnSync(status.command, ["-m", modelPath, "-f", inputPath, "-otxt", "-of", outPrefix], {
+    encoding: "utf8",
+    timeout: 120000,
+  });
+  const txtPath = `${outPrefix}.txt`;
+  const text = fs.existsSync(txtPath) ? fs.readFileSync(txtPath, "utf8").trim() : "";
+  return run.status === 0 ? { ok: true, text, engine: status.engine } : { ok: false, error: run.stderr || run.stdout || "whisper.cpp failed" };
 }
 
 function startSystemOverlay() {
@@ -246,21 +284,26 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // ---- POST /system/hotkey — global macOS shortcuts for hand gestures ----
-  if (req.method === "POST" && requestPath === "/system/hotkey") {
-    let body = "";
-    req.on("data", chunk => (body += chunk));
+  // ---- GET /caption/status — local subtitle engine status ----
+  if (req.method === "GET" && requestPath === "/caption/status") {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(captionEngineStatus()));
+    return;
+  }
+
+  // ---- POST /caption/local — transcribe an audio chunk with local Whisper ----
+  if (req.method === "POST" && requestPath === "/caption/local") {
+    const chunks = [];
+    req.on("data", chunk => chunks.push(chunk));
     req.on("end", () => {
       res.setHeader("Access-Control-Allow-Origin", "*");
-      try {
-        const { action } = JSON.parse(body);
-        const result = runSystemHotkey(action);
-        res.writeHead(result.ok ? 200 : 400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify(result));
-      } catch {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: false, error: "Invalid JSON" }));
-      }
+      const inputPath = path.join(os.tmpdir(), `neotouch-caption-${Date.now()}.webm`);
+      fs.writeFileSync(inputPath, Buffer.concat(chunks));
+      const result = transcribeLocalAudio(inputPath);
+      fs.rm(inputPath, { force: true }, () => {});
+      res.writeHead(result.ok ? 200 : 503, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(result));
     });
     return;
   }
