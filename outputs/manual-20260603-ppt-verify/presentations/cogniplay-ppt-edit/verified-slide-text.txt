@@ -1,0 +1,510 @@
+
+--- slide 1 ---
+CogniPlay Studio
+Any Wall.
+Any Child.
+Infinite Learning.
+HACKATHON PITCH  ·  2026
+Demo: localhost:3000/cogniplay · Contact: add final email
+TouchWall CV Engine
+Hand tracking · Homography · macOS bridge
+CogniPlay Puzzle Engine
+React 19 · IRT scoring · 15 labels
+Local-First AI
+Ollama llama3 · offline · privacy-safe
+Adaptive Cognitive Profiling
+7 dimensions · EMA · parent dashboard
+© 2026 CogniPlay Studio. Confidential.
+
+--- slide 2 ---
+THE PROBLEM
+Smart classrooms cost a fortune.
+Learning analytics are an afterthought.
+$3K–15K
+Average SMART Board cost
+Dedicated boards remain costly; many schools already have a display or projector.
+Low visibility
+Child learning after school
+Static worksheets, zero analytics. Parents and teachers get no real cognitive insight.
+1-size
+Fits all apps
+Rigid difficulty. Fast learners are bored; struggling kids disengage and drop off.
+0 APIs
+Between tools in classrooms
+Whiteboard, game, analytics, and parent report live in disconnected silos.
+
+--- slide 3 ---
+THE SOLUTION
+A webcam + projector + our software =
+adaptive smart classroom.
+TouchWall
+Webcam + MediaPipe turns any projected wall into a gesture-controlled surface. No smartboard hardware required.
+CogniPlay
+React puzzle engine with 3PL-IRT adaptive scoring, 7-dimension cognitive profiling, and 15 category labels.
+Local AI
+Ollama llama3 runs on-device. Powers whiteboard flowcharts and puzzle hints with local/private inference.
+Live product — CV Active, wall host running
+
+--- slide 4 ---
+HOW IT WORKS
+Quick guided setup. No specialist knowledge required.
+01
+Point webcam at wall
+USB or built-in webcam plus existing display/projector.
+02
+4-tap perspective calibration
+Touch wall corners. Homography computed instantly.
+03
+CogniPlay loads on projector
+Full app streams into the iframe host.
+04
+Child gestures to interact
+Pinch, drag, trace — tracked by MediaPipe Hands.
+05
+IRT adapts difficulty live
+3PL-IRT updates ability estimate each attempt.
+Home World — activity selection
+Shape sorting — drag & drop
+
+--- slide 5 ---
+TOUCHWALL — CV ENGINE
+Hand Tracker v3 — rebuilt from scratch for production reliability.
+v3
+OneEuroFilter1D smoothing
+Per-landmark (21 × {x,y,z}) filters eliminate jitter at the source.
+v3
+Velocity-gated pinch
+Accidental triggers while moving are blocked. Real pinch occurs nearly stationary.
+v3
+Temporal pinch hysteresis
+Confirmed across multiple consecutive frames. Eliminates single-frame glitch triggers.
+v3
+Full hand-plane depth (Z)
+Uses entire hand plane — not a single fingertip — for accurate push-forward depth.
+v3
+distanceFromScreen scaling
+Scales depth thresholds for 50cm–3m from wall. Same feel at any projection range.
+v3
+Frame-rate-independent
+Real time deltas (dt tracking): stable frequency response at 30fps, 60fps, or variable.
+
+--- slide 6 ---
+AI WHITEBOARD ENGINE
+Draw, explain, generate flowcharts locally. No cloud dependency.
+ShapeClassifier
+Offline stroke beautification. Circle, rectangle, triangle, line, arrow — pure geometry. No GPU, no API calls.
+Whiteboard Copilot
+Ollama llama3 generates text, definitions, flowcharts, tables, and word-charts locally.
+Shape Assist
+Toggle on/off. Laser pointer mode. Undo/redo stack. Brush, eraser, size controls.
+Whiteboard with Shape Assist
+Generated water cycle flowchart
+
+--- slide 7 ---
+COGNIPLAY — PUZZLE ENGINE
+Active play modes plus 15 category labels. Adaptive on every attempt.
+—
+Drag & Drop
+Grab a shape choice and drop into the target zone.
+—
+Trace Maze
+Follow the path with your hand — wall collision detected.
+—
+Pattern Play
+Complete the colour/shape sequence.
+—
+Memory Reveal
+Memorise, then recall the hidden light order.
+—
+Picture Match
+Match item to category card.
+Pattern Play
+Memory Lights
+Memory Recall
+Sorting Play
+
+--- slide 8 ---
+ADAPTIVE SCORING
+Designed to keep children in the zone — less boredom, less frustration.
+P(θ) = c + (1 − c) / (1 + e^{−a(θ−b)})
+3PL-IRT — Three Parameter Logistic Item Response Theory
+θ
+Student ability
+Updated Bayesian after each attempt. Personalised per child.
+b
+Item difficulty
+Set by prototype parameters. Pilot calibration planned.
+a
+Item discrimination
+How sharply the item separates adjacent ability levels.
+c
+Guessing parameter
+Chance-level floor. Prevents lucky streaks from inflating θ.
+
+--- slide 9 ---
+LEARNING DNA
+7-dimension cognitive profile. Built live. Visible to child, parent, teacher.
+Attention Control
+Sustained focus across puzzle sets
+Working Memory
+Hold sequence then recall it
+Response Time
+Faster correct responses improve score
+Pattern Logic
+Identify rules and complete sequences
+Spatial Reasoning
+Rotate, mirror, fit shapes
+Learning Speed
+Rate of θ ascent per session
+Practice Persistence
+Hints, retries, and perseverance signals
+Learning DNA — radar
+Dimension breakdown
+
+--- slide 10 ---
+RECORDING & SUBTITLES
+Capture sessions. Local Whisper can burn subtitles on-device.
+Start Recording
+Full system screen capture with teacher camera picture-in-picture.
+Start Live Subtitles
+When configured, Whisper / whisper.cpp runs locally. No cloud audio upload.
+Caption Burn-in
+Subtitles baked into the recording file for accessibility.
+Cloud Upload (Roadmap)
+Local download today; school cloud storage integration planned.
+Lecture Recording — live subtitle area
+
+--- slide 11 ---
+PARENT DASHBOARD
+Plain-language progress. Low visibility science degree required.
+Cognitive Score
+Live IRT-derived ability estimate (0–1000 scale).
+Day Streak
+Consecutive play days — builds habit and retention.
+Strengths
+Top 3 dimensions with parent-friendly labels.
+Room to Grow
+Lowest dimensions with encouraging framing.
+Weekly Activity
+Score + puzzles-solved chart. Mock data in prototype.
+Try at Home
+Suggested home activities for parent reinforcement.
+Strengths + score
+Weekly chart + achievements
+
+--- slide 12 ---
+TEACHER DASHBOARD
+Prototype class-level analytics. Identify support needs early.
+Class Cognitive Profile
+Demo radar chart aggregated from mock students.
+Score Distribution
+Demo bar chart: how students cluster across score bands.
+Cognitive Heatmap
+Demo per-student × per-dimension grid. Colour-coded weak spots.
+Students Needing Attention
+Prototype flags by declining trend or below-threshold score.
+Recommended Actions
+Rule-based demo suggestions; AI recommendations planned.
+Class heatmap + score distribution
+⚠  Prototype note: teacher dashboard currently uses hardcoded mock students. Real roster integration is the highest-priority next sprint.
+
+--- slide 13 ---
+USER EXPERIENCE
+Three audiences. One platform. Each experience purpose-built.
+Child (ages 3–5)
+Name + age setup
+World selection
+Puzzle play — drag, trace, match
+Local AI hint on demand
+Stars · XP · badge reward
+Learning DNA radar
+Teacher
+Guided TouchWall setup
+Calibrate projection
+Run CogniPlay or Whiteboard
+View class heatmap
+Record session + subtitles
+Follow up on flagged students
+Parent
+View Learning DNA radar
+Strengths + growth areas
+Weekly activity chart
+Suggested home tips
+Progress notes; logs planned
+Progress over time
+
+--- slide 14 ---
+TECHNOLOGY
+Lean stack. No unnecessary dependencies. Built to ship.
+Host Shell
+HTML / CSS / JS
+Zero npm dependencies on host
+CV Tracking
+MediaPipe Hands
+21 landmarks · OneEuroFilter
+OS Bridge
+Python + CoreGraphics
+macOS now · Windows port planned
+Animation
+Framer Motion
+CogniPlay transitions + rewards
+Game App
+React 19 + Vite 8 + TS
+CogniPlay puzzle prototype
+State
+Zustand + localStorage
+Prototype-grade persistence
+AI (local)
+Ollama llama3
+Offline · no cloud dependency
+Backend / Auth
+— not yet built —
+Supabase / Firebase · Sprint 1
+Database
+— not yet built —
+Priority roadmap item
+
+--- slide 15 ---
+BUILD STATUS
+Honest assessment — impressive prototype, clear roadmap.
+✓  Built
+Hand tracking v3 with OneEuroFilter smoothing
+4-point homography calibration
+Python macOS cursor bridge
+CogniPlay full puzzle play loop (React 19 / Vite 8)
+3PL-IRT adaptive difficulty engine
+7-dim cognitive profiler with EMA scoring
+Shape classifier — offline stroke beautification
+Ollama whiteboard: text, flowcharts, tables, sketches
+Screen + camera PiP recording with caption burn-in
+Parent dashboard (local profile data)
+⚡  Roadmap
+Backend + database (Supabase/Firebase)
+Role-based auth (teacher / parent / student)
+Real classroom roster and student linking
+Enable AI puzzle generation after validation
+Windows cursor bridge (win32api)
+Cloud sync and multi-device support
+WCAG 2.1 accessibility audit
+Content authoring tool for teachers
+Efficacy study + item calibration data
+
+--- slide 16 ---
+MARKET OPPORTUNITY
+Massive market. Underserved with software-first, adaptive solutions.
+$187B
+Global EdTech 2025
+Grand View Research
+$54B
+Interactive Display Market
+Fortune Business Insights
+3–6
+Early Childhood focus
+UN / World Bank
+Low-cost
+Uses existing display + webcam
+avoids dedicated smartboard hardware
+UN Sustainable Development Goals alignment
+SDG 4
+Quality Education
+Adaptive personalised learning for every child regardless of budget.
+SDG 10
+Reduced Inequalities
+Software-only removes hardware cost as a barrier to smart classrooms.
+SDG 17
+Partnerships for Goals
+Partnership model lets schools, NGOs, and EdTechs build on it.
+
+--- slide 17 ---
+COMPETITIVE LANDSCAPE
+A software-first, offline-capable, cognitively adaptive interactive wall.
+No smartboard hardware
+Local AI
+Adaptive scoring
+Cognitive profiling
+Entry cost
+SMART Board
+✗
+✗
+✗
+✗
+$5–15K
+Osmo
+✗
+✗
+Partial
+✗
+$100+
+Kahoot
+✓
+✗
+✗
+✗
+Freemium
+Duolingo ABC
+✓
+✗
+Partial
+✗
+Free
+CogniPlay Studio ★
+✓
+✓
+✓
+✓
+Low cost
+CogniPlay combines software-first wall interaction, local AI, adaptive IRT, and 7-dimension cognitive profiling in one prototype.
+
+--- slide 18 ---
+BUSINESS MODEL
+School SaaS at the core. Multiple growth channels.
+School SaaS
+$199 / yr
+Full platform per school · unlimited students
+Therapy Centers
+$49 / mo
+OT clinics · early intervention · SEND programs
+Hardware Bundle
+$299
+Projector + webcam + guided setup + 1-year SaaS
+Content Packs
+$9.99 each
+Phonics · numeracy · STEM · bilingual packs
+Home Educator
+Free → $9.99/mo
+Cloud sync + advanced reports unlocked on paid tier
+Analytics API
+B2B pricing
+License cognitive profiling engine to EdTech partners
+
+--- slide 19 ---
+GO-TO-MARKET
+Community-led pilots. Monetise the SaaS and content layer.
+Playbook: pilot-first community adoption, then monetise cloud sync, curriculum packs, and school support.
+Phase 1  ·  Now
+Win + Pilot Proof
+—  Demo live at hackathon
+—  Demo feedback + community
+—  Public repo/docs when ready
+Phase 2  ·  M1–M3
+5 Pilot Partners
+—  Schools + therapy centres
+—  Co-design sessions
+—  Efficacy + classroom data
+Phase 3  ·  M4–M8
+MVP Launch
+—  Backend + auth shipped
+—  App store + SaaS billing
+—  100 paying licenses
+Phase 4  ·  M9–M18
+Scale
+—  District-level deals
+—  Hardware bundles
+—  International expansion
+
+--- slide 20 ---
+3-YEAR ARR TRAJECTORY
+Illustrative ARR model: $180K → $1.2M → $5.8M over 3 years.
+Year 1
+$180K
+100 schools + therapy
+Year 2
+$1.2M
+600 schools + packs
+Year 3
+$5.8M
+2,500 schools + API
+
+--- slide 21 ---
+RISKS & MITIGATIONS
+We know what's missing. Here's exactly how we fix it.
+HIGH
+No backend / auth
+Sprint 1: Supabase + JWT. 6-week implementation estimate.
+HIGH
+Mock teacher dashboard
+Replace MOCK_STUDENTS after backend + real roster lands.
+HIGH
+Child data / COPPA
+No cloud PII in prototype. Local browser stores learner profile; consent flow planned.
+MED
+Calibration reliability
+Auto-cal via HSV colour markers. Wizard < 3 min. In testing.
+MED
+macOS-only cursor bridge
+Windows bridge via win32api in development. 8-week estimate.
+MED
+AI puzzle gen disabled
+Enable validated generation path; current puzzles are procedural.
+MED
+Whisper dependency
+Graceful fallback — recording works without Whisper; subtitles optional.
+
+--- slide 22 ---
+TEAM
+Full-stack founders. Every core discipline covered.
+FE
+Full-Stack Engineer
+React · Node · Vite · TypeScript
+CogniPlay game engine, routing, all UI
+CE
+CV Engineer
+MediaPipe · Python · OpenCV · homography
+TouchWall tracker v3, cursor bridge, calibration
+A/ME
+AI / ML Engineer
+IRT · EMA · LLMs · Ollama
+3PL-IRT engine, CognitiveScorer, AI hints
+U/ED
+UX / EdTech Designer
+Child UX · Framer Motion · Learning Science
+Game UX, age-appropriate flows, Framer animations
+
+--- slide 23 ---
+PROTOTYPE DEMO GUIDE
+How to access and navigate the clickable prototype.
+Access the live prototype
+localhost:3000  /  localhost:3000/cogniplay  (run: node server.js)
+Navigation walkthrough
+1
+Landing / CV Active
+Top nav shows Puzzle Playground · Whiteboard · Recording · CV Engine. Check CV ACTIVE badge top-right.
+2
+Enter Home World
+Click Continue Playing. See Shape Island, Pattern Room, Memory Train, Drawing Studio world cards.
+3
+Play a Puzzle
+Select any world → Play. Try dragging a choice card to the 'Drop the piece here' zone.
+4
+Open Whiteboard
+Top nav → Whiteboard. Type a topic in the AI box → click Flowchart. Watch it generate live.
+5
+View Learning DNA
+During puzzle play → Settings → Parent Dashboard. Shows score, radar chart, dimension bars.
+6
+View Teacher Dashboard
+Settings → Teacher Mode. Class cognitive profile, heatmap, students needing attention.
+7
+Recording tab
+Top nav → Recording. Shows Start Recording, Cloud Upload roadmap, Start Live Subtitles buttons.
+
+--- slide 24 ---
+WHAT WE'RE ASKING FOR
+Help us turn a strong prototype into a classroom-deployed product.
+Win today
+$0 cash ask
+Validation + visibility. Turns a compelling prototype into a credible product story for investors and school buyers.
+Month 1–3
+5 pilot schools
+Schools or therapy centres to co-develop and stress-test before we charge. Real classroom data is everything.
+6-month runway
+$150K pre-seed
+Backend, auth, Windows bridge, content packs, and one teacher-designer hire. Positions us for a proper seed round.
+5-year vision: 10 million children · 2026 hackathon prototype → 2026 pilots → 2027 1M child profiles → 2028 API platform → 2029 10M children global
+
+--- slide 25 ---
+CogniPlay Studio
+Any Wall.  Any Child.  Infinite Learning.
+Public repo: add final link before submission
+Demo: localhost:3000/cogniplay · Contact: add final email
+© 2026 CogniPlay Studio. Confidential.

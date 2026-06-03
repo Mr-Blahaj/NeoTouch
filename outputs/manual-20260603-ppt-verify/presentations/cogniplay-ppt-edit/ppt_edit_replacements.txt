@@ -1,0 +1,62 @@
+React 19 · IRT scoring · 15 categories -> React 19 · IRT scoring · 15 labels
+Out of reach for 90% of global schools. Most already own a projector and webcam. -> Dedicated boards remain costly; many schools already have a display or projector.
+No data -> Low visibility
+Webcam + MediaPipe turns any projected wall into a gesture-controlled surface. No dedicated hardware required. -> Webcam + MediaPipe turns any projected wall into a gesture-controlled surface. No smartboard hardware required.
+React puzzle engine with 3PL-IRT adaptive scoring, 7-dimension cognitive profiling, and 15 learning categories. -> React puzzle engine with 3PL-IRT adaptive scoring, 7-dimension cognitive profiling, and 15 category labels.
+Ollama llama3 runs fully on-device. Powers whiteboard flowcharts and puzzle hints with zero latency or cloud cost. -> Ollama llama3 runs on-device. Powers whiteboard flowcharts and puzzle hints with local/private inference.
+Setup in under 3 minutes. No specialist knowledge required. -> Quick guided setup. No specialist knowledge required.
+Any consumer USB or built-in webcam works. -> USB or built-in webcam plus existing display/projector.
+Pinch, drag, trace — tracked by MediaPipe v3. -> Pinch, drag, trace — tracked by MediaPipe Hands.
+AI adapts difficulty live -> IRT adapts difficulty live
+Draw, explain, generate flowcharts. All local. Zero latency. -> Draw, explain, generate flowcharts locally. No cloud dependency.
+AI Shape Assist -> Shape Assist
+AI-generated water cycle flowchart -> Generated water cycle flowchart
+5 interaction types. 15 categories. Adaptive on every attempt. -> Active play modes plus 15 category labels. Adaptive on every attempt.
+Children always feel in the zone — never bored, never overwhelmed. -> Designed to keep children in the zone — less boredom, less frustration.
+Set per puzzle category. Calibrated from pilot data. -> Set by prototype parameters. Pilot calibration planned.
+Processing Speed -> Response Time
+Rapid correct response under time -> Faster correct responses improve score
+Persistence -> Practice Persistence
+Retry count and perseverance score -> Hints, retries, and perseverance signals
+Capture every session. Local Whisper burns subtitles on-device. -> Capture sessions. Local Whisper can burn subtitles on-device.
+Whisper / whisper.cpp runs locally. No audio leaves the device. -> When configured, Whisper / whisper.cpp runs locally. No cloud audio upload.
+Upload to Cloud -> Cloud Upload (Roadmap)
+One-tap export to school cloud storage when connection available. -> Local download today; school cloud storage integration planned.
+AI-generated activity tips for parent reinforcement. -> Suggested home activities for parent reinforcement.
+Class-level cognitive analytics. Identify struggling students early. -> Prototype class-level analytics. Identify support needs early.
+Radar chart aggregated across all enrolled students. -> Demo radar chart aggregated from mock students.
+Bar chart: how students cluster across score bands. -> Demo bar chart: how students cluster across score bands.
+Per-student × per-dimension grid. Colour-coded weak spots. -> Demo per-student × per-dimension grid. Colour-coded weak spots.
+Auto-flagged by declining trend or below-threshold score. -> Prototype flags by declining trend or below-threshold score.
+AI-generated teaching suggestions per flagged student. -> Rule-based demo suggestions; AI recommendations planned.
+AI hint on demand -> Local AI hint on demand
+Setup TouchWall < 3 min -> Guided TouchWall setup
+AI-generated home tips -> Suggested home tips
+Session logs + screen time -> Progress notes; logs planned
+MediaPipe Hands v3 -> MediaPipe Hands
+Full CogniPlay puzzle engine -> CogniPlay puzzle prototype
+AI shape classifier — offline stroke beautification -> Shape classifier — offline stroke beautification
+Enable AI puzzle generation (disabled early return) -> Enable AI puzzle generation after validation
+1.5B -> 3–6
+Children aged 3–12 worldwide -> Early Childhood focus
+300× -> Low-cost
+Cheaper than a SMART Board -> Uses existing display + webcam
+vs. $5–15K average -> avoids dedicated smartboard hardware
+Open-source engine invites schools, NGOs, and EdTechs to build on it. -> Partnership model lets schools, NGOs, and EdTechs build on it.
+The only software-only, offline, cognitively adaptive interactive wall. -> A software-first, offline-capable, cognitively adaptive interactive wall.
+No hardware needed -> No smartboard hardware
+Offline AI -> Local AI
+CogniPlay Studio is the only solution combining all four: software-only, offline AI, adaptive IRT, and 7-dimension cognitive profiling. -> CogniPlay combines software-first wall interaction, local AI, adaptive IRT, and 7-dimension cognitive profiling in one prototype.
+Open-source the engine. Monetise the SaaS and content layer. -> Community-led pilots. Monetise the SaaS and content layer.
+Playbook: open-source core (community + discovery), monetise cloud + curriculum. Same model as Moodle, Unity, Godot. -> Playbook: pilot-first community adoption, then monetise cloud sync, curriculum packs, and school support.
+Win + Open Source -> Win + Pilot Proof
+GitHub stars + community -> Demo feedback + community
+Open-source engine repo -> Public repo/docs when ready
+$180K → $1.2M → $5.8M ARR over 3 years. -> Illustrative ARR model: $180K → $1.2M → $5.8M over 3 years.
+No PII stored today. Parental consent flow + on-device first. -> No cloud PII in prototype. Local browser stores learner profile; consent flow planned.
+Remove early return in AIEngine.ts. Ollama endpoint is ready. -> Enable validated generation path; current puzzles are procedural.
+cogniplay.io  /  localhost:5173  (run: npm run dev in CogniPlay/cogniplay) -> localhost:3000  /  localhost:3000/cogniplay  (run: node server.js)
+Top nav → Recording. Shows Start Recording, Upload to Cloud, Start Live Subtitles buttons. -> Top nav → Recording. Shows Start Recording, Cloud Upload roadmap, Start Live Subtitles buttons.
+5-year vision: 10 million children · 2025 hackathon prototype → 2026 100 schools → 2027 1M child profiles → 2028 API platform → 2029 10M children global -> 5-year vision: 10 million children · 2026 hackathon prototype → 2026 pilots → 2027 1M child profiles → 2028 API platform → 2029 10M children global
+github.com/cogniplaystudio -> Public repo: add final link before submission
+cogniplay.io  ·  hello@cogniplay.io -> Demo: localhost:3000/cogniplay · Contact: add final email
